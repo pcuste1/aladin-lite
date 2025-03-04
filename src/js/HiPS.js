@@ -129,6 +129,17 @@ PropertyParser.isPlanetaryBody = function (properties) {
 
 /**
  * HiPS options
+ * 
+ * @description Minimal user provided properties will prevent Aladin Lite from fetching the properties file describing the HiPS properties.
+ * These minimal informations needed by aladin lite are:
+ * <ul>
+ * <li>The max HEALPix order of the survey tiles</li>
+ * <li>A location url of the HiPS. If a CDS ID is given (i.e. one took from the {@link https://aladin.cds.unistra.fr/hips/list| CDS HiPS list aggregator}) e.g. CDS/P/2MASS/K) then the properties is retrieved to obtain a base url for fetching the tiles.</li>
+ * <li>The image format of the HiPS tiles ('jpeg', 'png', 'fits', 'webp' are supported)</li>
+ * <li>The size of one tile (typically 512x512)</li>
+ * <li>The coordinate frame of the HiPS</li>
+ * </ul>
+ * 
  * @typedef {Object} HiPSOptions
  * @property {string} [name] - The name of the survey to be displayed in the UI
  * @property {Function} [successCallback] - A callback executed when the HiPS has been loaded
