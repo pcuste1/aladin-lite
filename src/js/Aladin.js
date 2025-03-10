@@ -493,7 +493,7 @@ export let Aladin = (function () {
                         document.mozFullScreenElement ||
                         document.msFullscreenElement;
                     if (fullscreenElt === null || fullscreenElt === undefined) {
-                        //self.aladinDiv.classList.remove('aladin-fullscreen');
+                        self.toggleFullscreen(options.realFullscreen);
 
                         var fullScreenToggledFn =
                             self.callbacksByEventName["fullScreenToggled"];
