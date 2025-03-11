@@ -1448,6 +1448,19 @@ export let View = (function () {
         this.requestRedraw();
     }
 
+    View.prototype.importSelection = function(sources) {
+        this.selectObjects(
+            this.catalogs.map((cat) => {
+                if (!cat.isShowing) {
+                    return;
+                }
+                return cat.getSources().filter((source) => 
+                    sources.some(s => s.ra == source.ra && s.dec == source.dec)
+                );
+            })
+        );
+    }
+
     View.prototype.selectObjects = function(selection) {
         // unselect the previous selection
         this.unselectObjects();

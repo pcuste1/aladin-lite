@@ -2139,6 +2139,10 @@ aladin.on("layerChanged", (layer, layerName, state) => {
         this.fire("selectstart", { mode, callback });
     };
 
+    Aladin.prototype.select_by_import = async function(sources, callback) {
+        this.view.select_by_import(sources, callback);
+    }
+
     Aladin.prototype.fire = function (what, params) {
         if (what === "selectstart") {
             const { mode, callback } = params;
