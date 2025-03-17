@@ -600,7 +600,9 @@ export let View = (function () {
         Utils.on(view.catalogCanvas, "contextmenu", function (e) {
             // do something here...
             e.preventDefault();
-            e.stopPropagation();
+            if(view.aladin.contextMenu) {
+                e.stopPropagation();
+            }
         }, false);
 
 
