@@ -24,6 +24,7 @@ uniform Tile textures_tiles[12];
 #include ../../projection/hpx_proj.glsl;
 
 uniform float opacity;
+uniform vec4 no_tile_color;
 
 vec4 get_tile_color(vec3 pos) {
     HashDxDy result = hash_with_dxdy(0, pos.zxy);
@@ -35,9 +36,8 @@ vec4 get_tile_color(vec3 pos) {
     vec2 offset = uv;
     vec3 UV = vec3(offset, float(tile.texture_idx));
 
-    vec4 color = get_color_from_texture(UV);
-    color.a *= (1.0 - tile.empty);
-    return color;
+    vec4 color = mix(get_pixels(UV), no_tile_color, tile.empty);
+    return apply_color_settings(color);
 }
 
 void main() {

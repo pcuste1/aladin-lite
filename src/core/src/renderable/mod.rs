@@ -219,31 +219,24 @@ impl Layers {
         // Check whether a hips to plot is allsky
         // if neither are, we draw a font
         // if there are, we do not draw nothing
-        let mut background_color = None;
-        for layer in self.layers.iter() {
+        let mut idx_start_layer = -1;
+
+        for (idx, layer) in self.layers.iter().enumerate() {
             let meta = self.meta.get(layer).unwrap_abort();
             let cdid = self.ids.get(layer).unwrap_abort();
 
             if let Some(hips) = self.hipses.get(cdid) {
-                let allsky = hips.is_allsky();
-                let opaque = meta.opacity == 1.0;
-
-                background_color = match (allsky, opaque) {
-                    (true, true) => None,
-                    _ => Some(self.background_color),
-                };
-            } else {
-                // image fits case. We render a background
-                background_color = Some(self.background_color);
-            }
-
-            if background_color.is_some() {
-                break;
+                // Check if a HiPS is fully opaque so that we cannot see the background
+                // In that case, no need to draw a background because a HiPS will fully cover it
+                let full_covering_hips = (hips.get_config().get_format().get_channel() == ChannelType::RGB8U || hips.is_allsky()) && meta.opacity == 1.0;
+                if full_covering_hips {
+                    idx_start_layer = idx as i32;
+                }
             }
         }
 
         // Need to render transparency font
-        if let Some(background_color) = &background_color {
+        if idx_start_layer == -1 {
             let vao = if raytracing {
                 raytracer.get_vao()
             } else {
@@ -254,7 +247,7 @@ impl Layers {
             get_backgroundcolor_shader(&self.gl, shaders)?
                 .bind(&self.gl)
                 .attach_uniforms_from(camera)
-                .attach_uniform("color", &background_color)
+                .attach_uniform("color", &self.background_color)
                 .bind_vertex_array_object_ref(vao)
                 .draw_elements_with_i32(
                     WebGl2RenderingContext::TRIANGLES,
@@ -262,28 +255,12 @@ impl Layers {
                     WebGl2RenderingContext::UNSIGNED_SHORT,
                     0,
                 );
+
+            // The background (index -1) has been drawn, we can draw the first HiPS
+            idx_start_layer = 0;
         }
 
-        // Pre loop over the layers to see if a HiPS is entirely covering those behind
-        // so that we do not have to render those
-        let mut idx_start_layer = 0;
-        for (idx_layer, layer) in self.layers.iter().enumerate().skip(1) {
-            let meta = self.meta.get(layer).expect("Meta should be found");
-
-            let id = self.ids.get(layer).expect("Url should be found");
-            if let Some(hips) = self.hipses.get_mut(id) {
-                let hips_cfg = hips.get_config();
-
-                let fully_covering_hips = (hips.is_allsky()
-                    || hips_cfg.get_format().get_channel() == ChannelType::RGB8U)
-                    && meta.opacity == 1.0;
-                if fully_covering_hips {
-                    idx_start_layer = idx_layer;
-                }
-            }
-        }
-
-        let layers_to_render = &self.layers[idx_start_layer..];
+        let layers_to_render = &self.layers[(idx_start_layer as usize)..];
         for layer in layers_to_render {
             let draw_opt = self.meta.get(layer).expect("Meta should be found");
             if draw_opt.visible() {
@@ -293,7 +270,6 @@ impl Layers {
                     match hips {
                         HiPS::D2(hips) => {
                             hips.update(camera, projection);
-                            // 2. Draw it if its opacity is not null
                             hips.draw(shaders, colormaps, camera, raytracer, draw_opt, projection)?;
                         }
                         HiPS::D3(hips) => {

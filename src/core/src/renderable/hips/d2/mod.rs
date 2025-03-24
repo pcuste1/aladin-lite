@@ -1,12 +1,14 @@
 pub mod buffer;
 pub mod texture;
 
+use crate::app::BLENDING_ANIM_DURATION;
 use crate::renderable::hips::HpxTile;
 use al_api::hips::ImageExt;
 use al_api::hips::ImageMetadata;
 use al_core::colormap::Colormap;
 use al_core::colormap::Colormaps;
 use al_core::image::format::ChannelType;
+use cgmath::Vector3;
 
 use crate::downloader::query;
 
@@ -14,6 +16,7 @@ use al_core::image::Image;
 
 use al_core::shader::Shader;
 use al_core::webgl_ctx::GlWrapper;
+use cgmath::Vector4;
 
 use al_core::VecData;
 use al_core::VertexArrayObject;
@@ -50,22 +53,38 @@ use cgmath::Matrix;
 use wasm_bindgen::JsValue;
 use web_sys::WebGl2RenderingContext;
 
-pub struct TextureToDraw<'a, 'b> {
-    pub starting_texture: &'a HpxTexture2D,
-    pub ending_texture: &'a HpxTexture2D,
-    pub cell: &'b HEALPixCell,
+pub struct HpxDrawData<'a> {
+    pub uv_0: TileUVW,
+    pub uv_1: TileUVW,
+    pub start_time: f32,
+    pub cell: &'a HEALPixCell,
 }
 
-impl<'a, 'b> TextureToDraw<'a, 'b> {
-    fn new(
-        starting_texture: &'a HpxTexture2D,
-        ending_texture: &'a HpxTexture2D,
-        cell: &'b HEALPixCell,
-    ) -> TextureToDraw<'a, 'b> {
-        TextureToDraw {
-            starting_texture,
-            ending_texture,
+impl<'a> HpxDrawData<'a> {
+    fn from_texture(
+        starting_texture: &HpxTexture2D,
+        ending_texture: &HpxTexture2D,
+        cell: &'a HEALPixCell,
+    ) -> Self {
+        let uv_0 = TileUVW::new(cell, starting_texture);
+        let uv_1 = TileUVW::new(cell, ending_texture);
+        let start_time = ending_texture.start_time().as_millis();
+
+        Self {
+            uv_0,
+            uv_1,
+            start_time,
             cell,
+        }
+    }
+
+    fn new(cell: &'a HEALPixCell) -> Self {
+        let uv_0 = TileUVW([Vector3::new(-1.0, -1.0, -1.0); 4]);
+        let uv_1 = TileUVW([Vector3::new(-1.0, -1.0, -1.0); 4]);
+        let start_time = BLENDING_ANIM_DURATION.as_millis();
+
+        Self {
+            cell, uv_0, uv_1, start_time
         }
     }
 }
@@ -435,8 +454,8 @@ impl HiPS2D {
 
         for cell in &self.hpx_cells_in_view {
             // filter textures that are not in the moc
-            let cell = if let Some(moc) = self.footprint_moc.as_ref() {
-                if moc.intersects_cell(&cell) || channel == ChannelType::RGB8U {
+            let cell_in_cov = if let Some(moc) = self.footprint_moc.as_ref() {
+                if moc.intersects_cell(&cell) {
                     // Rasterizer does not render tiles that are not in the MOC
                     // This is not a problem for transparency rendered HiPses (FITS or PNG)
                     // but JPEG tiles do have black when no pixels data is found
@@ -449,33 +468,33 @@ impl HiPS2D {
                 Some(&cell)
             };
 
-            if let Some(cell) = cell {
-                let texture_to_draw = if self.buffer.contains(cell) {
+            let hpx_cell = if let Some(cell) = cell_in_cov {
+                if self.buffer.contains(cell) {
                     if let Some(ending_cell_in_tex) = self.buffer.get(cell) {
                         if let Some(parent_cell) = self.buffer.get_nearest_parent(cell) {
                             if let Some(starting_cell_in_tex) = self.buffer.get(&parent_cell) {
-                                Some(TextureToDraw::new(
+                                Some(HpxDrawData::from_texture(
                                     starting_cell_in_tex,
                                     ending_cell_in_tex,
                                     cell,
                                 ))
                             } else {
                                 // no blending here
-                                Some(TextureToDraw::new(
+                                Some(HpxDrawData::from_texture(
                                     ending_cell_in_tex,
                                     ending_cell_in_tex,
                                     cell,
                                 ))
                             }
                         } else {
-                            Some(TextureToDraw::new(
+                            Some(HpxDrawData::from_texture(
                                 ending_cell_in_tex,
                                 ending_cell_in_tex,
                                 cell,
                             ))
                         }
                     } else {
-                        None
+                        unreachable!()
                     }
                 } else {
                     if let Some(parent_cell) = self.buffer.get_nearest_parent(cell) {
@@ -486,116 +505,126 @@ impl HiPS2D {
                                 if let Some(starting_cell_in_tex) =
                                     self.buffer.get(&grand_parent_cell)
                                 {
-                                    Some(TextureToDraw::new(
+                                    Some(HpxDrawData::from_texture(
                                         starting_cell_in_tex,
                                         ending_cell_in_tex,
                                         cell,
                                     ))
                                 } else {
                                     // no blending
-                                    Some(TextureToDraw::new(
+                                    Some(HpxDrawData::from_texture(
                                         ending_cell_in_tex,
                                         ending_cell_in_tex,
                                         cell,
                                     ))
                                 }
                             } else {
-                                Some(TextureToDraw::new(
+                                Some(HpxDrawData::from_texture(
                                     ending_cell_in_tex,
                                     ending_cell_in_tex,
                                     cell,
                                 ))
                             }
                         } else {
-                            unreachable!();
+                            unreachable!()
                         }
                     } else {
-                        None
+                        // No ancestor has been found in the buffer to draw.
+                        // We might want to check if the HiPS channel is JPEG to mock a cell that will be drawn in black
+                        if channel == ChannelType::RGB8U {
+                            Some(HpxDrawData::new(cell))
+                        } else {
+                            None
+                        }
                     }
-                };
-
-                if let Some(TextureToDraw {
-                    cell,
-                    starting_texture,
-                    ending_texture,
-                }) = texture_to_draw
-                {
-                    let uv_0 = TileUVW::new(cell, starting_texture);
-                    let uv_1 = TileUVW::new(cell, ending_texture);
-                    let d01s = uv_0[TileCorner::BottomRight].x - uv_0[TileCorner::BottomLeft].x;
-                    let d02s = uv_0[TileCorner::TopLeft].y - uv_0[TileCorner::BottomLeft].y;
-                    let d01e = uv_1[TileCorner::BottomRight].x - uv_1[TileCorner::BottomLeft].x;
-                    let d02e = uv_1[TileCorner::TopLeft].y - uv_1[TileCorner::BottomLeft].y;
-
-                    let start_time = ending_texture.start_time().as_millis();
-
-                    let num_subdivision =
-                        super::subdivide::num_hpxcell_subdivision(cell, camera, projection);
-
-                    let n_segments_by_side: usize = 1 << (num_subdivision as usize);
-                    let n_segments_by_side_f32 = n_segments_by_side as f32;
-
-                    let n_vertices_per_segment = n_segments_by_side + 1;
-
-                    let mut pos = Vec::with_capacity((n_segments_by_side + 1) * 4);
-
-                    let grid_lonlat =
-                        healpix::nested::grid(cell.depth(), cell.idx(), n_segments_by_side as u16);
-                    let grid_lonlat_iter = grid_lonlat.iter();
-
-                    for (idx, &(lon, lat)) in grid_lonlat_iter.enumerate() {
-                        let i: usize = idx / n_vertices_per_segment;
-                        let j: usize = idx % n_vertices_per_segment;
-
-                        let hj0 = (j as f32) / n_segments_by_side_f32;
-                        let hi0 = (i as f32) / n_segments_by_side_f32;
-
-                        let uv_start = [
-                            uv_0[TileCorner::BottomLeft].x + hj0 * d01s,
-                            uv_0[TileCorner::BottomLeft].y + hi0 * d02s,
-                            uv_0[TileCorner::BottomLeft].z,
-                        ];
-
-                        let uv_end = [
-                            uv_1[TileCorner::BottomLeft].x + hj0 * d01e,
-                            uv_1[TileCorner::BottomLeft].y + hi0 * d02e,
-                            uv_1[TileCorner::BottomLeft].z,
-                        ];
-
-                        self.uv_start.extend(uv_start);
-                        self.uv_end.extend(uv_end);
-                        self.time_tile_received.push(start_time);
-
-                        let xyz = crate::math::lonlat::radec_to_xyz(lon.to_angle(), lat.to_angle());
-                        pos.push([xyz.x as f32, xyz.y as f32, xyz.z as f32]);
-                        //pos.push([lon as f32, lat as f32]);
-                    }
-
-                    let patch_indices_iter = DefaultPatchIndexIter::new(
-                        &(0..=n_segments_by_side),
-                        &(0..=n_segments_by_side),
-                        n_vertices_per_segment,
-                    )
-                    .flatten()
-                    .map(|indices| {
-                        [
-                            indices.0 + off_indices,
-                            indices.1 + off_indices,
-                            indices.2 + off_indices,
-                        ]
-                    })
-                    .flatten();
-                    self.idx_vertices.extend(patch_indices_iter);
-
-                    off_indices += pos.len() as u16;
-
-                    // Replace options with an arbitrary vertex
-                    let position_iter = pos
-                        .into_iter()
-                        //.map(|ndc| ndc.unwrap_or([0.0, 0.0]))
-                        .flatten();
-                    self.position.extend(position_iter);
                 }
+            } else {
+                // No ancestor has been found in the buffer to draw.
+                // We might want to check if the HiPS channel is JPEG to mock a cell that will be drawn in black
+                if channel == ChannelType::RGB8U {
+                    Some(HpxDrawData::new(cell))
+                } else {
+                    None
+                }
+            };
+
+            if let Some(HpxDrawData {
+                cell,
+                uv_0,
+                uv_1,
+                start_time
+            }) = hpx_cell {
+                let d01s = uv_0[TileCorner::BottomRight].x - uv_0[TileCorner::BottomLeft].x;
+                let d02s = uv_0[TileCorner::TopLeft].y - uv_0[TileCorner::BottomLeft].y;
+                let d01e = uv_1[TileCorner::BottomRight].x - uv_1[TileCorner::BottomLeft].x;
+                let d02e = uv_1[TileCorner::TopLeft].y - uv_1[TileCorner::BottomLeft].y;
+
+
+                let num_subdivision =
+                    super::subdivide::num_hpxcell_subdivision(cell, camera, projection);
+
+                let n_segments_by_side: usize = 1 << (num_subdivision as usize);
+                let n_segments_by_side_f32 = n_segments_by_side as f32;
+
+                let n_vertices_per_segment = n_segments_by_side + 1;
+
+                let mut pos = Vec::with_capacity((n_segments_by_side + 1) * 4);
+
+                let grid_lonlat =
+                    healpix::nested::grid(cell.depth(), cell.idx(), n_segments_by_side as u16);
+                let grid_lonlat_iter = grid_lonlat.iter();
+
+                for (idx, &(lon, lat)) in grid_lonlat_iter.enumerate() {
+                    let i: usize = idx / n_vertices_per_segment;
+                    let j: usize = idx % n_vertices_per_segment;
+
+                    let hj0 = (j as f32) / n_segments_by_side_f32;
+                    let hi0 = (i as f32) / n_segments_by_side_f32;
+
+                    let uv_start = [
+                        uv_0[TileCorner::BottomLeft].x + hj0 * d01s,
+                        uv_0[TileCorner::BottomLeft].y + hi0 * d02s,
+                        uv_0[TileCorner::BottomLeft].z,
+                    ];
+
+                    let uv_end = [
+                        uv_1[TileCorner::BottomLeft].x + hj0 * d01e,
+                        uv_1[TileCorner::BottomLeft].y + hi0 * d02e,
+                        uv_1[TileCorner::BottomLeft].z,
+                    ];
+
+                    self.uv_start.extend(uv_start);
+                    self.uv_end.extend(uv_end);
+                    self.time_tile_received.push(start_time);
+
+                    let xyz = crate::math::lonlat::radec_to_xyz(lon.to_angle(), lat.to_angle());
+                    pos.push([xyz.x as f32, xyz.y as f32, xyz.z as f32]);
+                }
+
+                let patch_indices_iter = DefaultPatchIndexIter::new(
+                    &(0..=n_segments_by_side),
+                    &(0..=n_segments_by_side),
+                    n_vertices_per_segment,
+                )
+                .flatten()
+                .map(|indices| {
+                    [
+                        indices.0 + off_indices,
+                        indices.1 + off_indices,
+                        indices.2 + off_indices,
+                    ]
+                })
+                .flatten();
+                self.idx_vertices.extend(patch_indices_iter);
+
+                off_indices += pos.len() as u16;
+
+                // Replace options with an arbitrary vertex
+                let position_iter = pos
+                    .into_iter()
+                    //.map(|ndc| ndc.unwrap_or([0.0, 0.0]))
+                    .flatten();
+                self.position.extend(position_iter);
             }
         }
 
@@ -642,7 +671,7 @@ impl HiPS2D {
     pub fn add_tile<I: Image>(
         &mut self,
         cell: &HEALPixCell,
-        image: Option<I>,
+        image: I,
         time_request: Time,
     ) -> Result<(), JsValue> {
         self.buffer.push(&cell, image, time_request)
@@ -708,6 +737,7 @@ impl HiPS2D {
                     .attach_uniforms_from(color)
                     .attach_uniform("model", &w2v)
                     .attach_uniform("current_time", &utils::get_current_time())
+                    .attach_uniform("no_tile_color",  &(if config.get_format().get_channel() == ChannelType::RGB8U { Vector4::new(0.0, 0.0, 0.0, 1.0) } else { Vector4::new(0.0, 0.0, 0.0, 0.0) }))
                     .attach_uniform("opacity", opacity)
                     .attach_uniforms_from(colormaps);
 

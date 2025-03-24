@@ -196,7 +196,7 @@ impl HiPS2DBuffer {
             let mutex_locked = image.borrow();
             let images = mutex_locked.as_ref().unwrap_abort();
             for (idx, image) in images.iter().enumerate() {
-                self.push(&HEALPixCell(depth_tile, idx as u64), Some(image), time_req)?;
+                self.push(&HEALPixCell(depth_tile, idx as u64), image, time_req)?;
             }
         }
 
@@ -272,7 +272,7 @@ impl HiPS2DBuffer {
     pub fn push<I: Image>(
         &mut self,
         cell: &HEALPixCell,
-        image: Option<I>,
+        image: I,
         time_request: Time,
     ) -> Result<(), JsValue> {
         if !self.contains_tile(cell) {
@@ -331,16 +331,14 @@ impl HiPS2DBuffer {
                 &mut self.base_textures[idx as usize]
             };
 
-            if let Some(image) = image {
-                send_to_gpu(
-                    cell,
-                    texture,
-                    image,
-                    &self.texture_2d_array,
-                    &mut self.config,
-                )?;
-            }
-            
+            send_to_gpu(
+                cell,
+                texture,
+                image,
+                &self.texture_2d_array,
+                &mut self.config,
+            )?;
+
             texture.append(
                 cell, // The tile cell
                 &self.config,

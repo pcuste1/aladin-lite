@@ -21,12 +21,6 @@ uniform Tile textures_tiles[12];
 uniform float opacity;
 uniform sampler2DArray tex;
 
-struct TileColor {
-    Tile tile;
-    vec4 color;
-    bool found;
-};
-
 #include ../color.glsl;
 #include ../../projection/hpx_proj.glsl;
 
@@ -40,9 +34,8 @@ vec4 get_tile_color(vec3 pos) {
     vec2 offset = uv;
     vec3 UV = vec3(offset, float(tile.texture_idx));
 
-    vec4 color = get_colormap_from_color_texture(UV);
-    color.a *= (1.0 - tile.empty);
-    return color;
+    float value = mix(get_pixels(UV).r, 0.0, tile.empty);
+    return apply_colormap_to_grayscale(value);
 }
 
 void main() {

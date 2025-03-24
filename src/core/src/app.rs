@@ -22,7 +22,6 @@ use crate::{
 };
 use al_api::moc::MOCOptions;
 use crate::math::angle::ToAngle;
-use al_core::image::format::ChannelType;
 use wcs::WCS;
 
 use wasm_bindgen::prelude::*;
@@ -506,7 +505,7 @@ impl App {
 
     pub(crate) fn set_moc_options(&mut self, options: MOCOptions) -> Result<(), JsValue> {
         self.moc
-            .set_options(options, &mut self.camera, &self.projection, &mut self.shaders)
+            .set_options(options)
             .ok_or_else(|| JsValue::from_str("MOC not found"))?;
         self.request_redraw = true;
 
@@ -705,7 +704,7 @@ impl App {
                                         tile_copied = true;
                                         match hips {
                                             HiPS::D2(hips) => {
-                                                hips.add_tile(&tile.cell, Some(img), tile.time_req)?
+                                                hips.add_tile(&tile.cell, img, tile.time_req)?
                                             }
                                             HiPS::D3(hips) => hips.add_tile(
                                                 &tile.cell,
@@ -715,16 +714,6 @@ impl App {
                                             )?,
                                         }
                                         self.time_start_blending = Time::now();
-                                    },
-                                    // In case of JPEG tile missing, add it to the HiPS because it must be drawn as black
-                                    None if cfg.get_format().get_channel() == ChannelType::RGB8U => {
-                                        self.request_redraw = true;
-                                        match hips {
-                                            HiPS::D2(hips) => {
-                                                hips.add_tile::<ImageType>(&tile.cell, None, tile.time_req)?
-                                            }
-                                            HiPS::D3(_) => (),
-                                        }
                                     },
                                     _ => ()
                                 };

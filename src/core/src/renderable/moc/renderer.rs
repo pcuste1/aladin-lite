@@ -107,9 +107,6 @@ impl MOCRenderer {
     pub fn set_options(
         &mut self,
         options: MOCOptions,
-        camera: &mut CameraViewPort,
-        projection: &ProjectionType,
-        shaders: &mut ShaderManager,
     ) -> Option<MOCOptions> {
         let name = options.get_uuid();
 

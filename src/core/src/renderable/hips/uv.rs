@@ -15,7 +15,7 @@ impl<T> Deref for UV<T> {
 use super::d2::texture::HpxTexture2D;
 use crate::healpix::cell::HEALPixCell;
 use crate::renderable::hips::HpxTile;
-pub struct TileUVW([Vector3<f32>; 4]);
+pub struct TileUVW(pub [Vector3<f32>; 4]);
 impl TileUVW {
     // The texture cell passed must be a child of texture
     pub fn new(cell: &HEALPixCell, texture: &HpxTexture2D) -> TileUVW {
