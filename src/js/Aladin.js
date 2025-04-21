@@ -2082,6 +2082,8 @@ export let Aladin = (function () {
         "select", // deprecated, use objectsSelected instead
         "objectsSelected",
 
+        "regionSelected",
+
         "objectClicked",
         "objectHovered",
         "objectHoveredStop",

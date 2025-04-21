@@ -205,6 +205,21 @@ export class PolySelect extends FSM {
                     let objList = Selector.getObjects(s, view);
                     callback(objList);
                 }
+
+                var region_callback = view.aladin.callbacksByEventName['regionSelected'];
+                if (typeof region_callback === "function") {
+
+                    region_callback({
+                        type: "poly",
+                        coos: this.coos.map((coo) => {
+                            let cooWorld = view.aladin.pix2world(coo.x, coo.y);
+                            return {
+                                ra: cooWorld[0],
+                                dec: cooWorld[1],
+                            };
+                        }),
+                    });
+                }
             }
 
             this.coos = [];

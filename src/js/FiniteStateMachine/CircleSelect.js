@@ -103,12 +103,32 @@ export class CircleSelect extends FSM {
 
             // execute general callback
             if (view.aladin.callbacksByEventName) {
-                var callback = view.aladin.callbacksByEventName['objectsSelected'] || view.aladin.callbacksByEventName['select'];
+                var select_callback = view.aladin.callbacksByEventName['objectsSelected'] || view.aladin.callbacksByEventName['select'];
 
-                if (typeof callback === "function") {
+                if (typeof select_callback === "function") {
                     let objList = Selector.getObjects(s, view);
                     view.selectObjects(objList);
-                    callback(objList);
+                    select_callback(objList);
+                }
+
+                var region_callback = view.aladin.callbacksByEventName['regionSelected'];
+                if (typeof region_callback === "function") {
+                    let startCooWorld = view.aladin.pix2world(this.startCoo.x, this.startCoo.y);
+                    let radius = view.aladin.angularDist(
+                        this.startCoo.x,
+                        this.startCoo.y,
+                        this.coo.x,
+                        this.coo.y
+                    );
+
+                    region_callback({
+                        type: "circle",
+                        startCoo: {
+                            ra: startCooWorld[0],
+                            dec: startCooWorld[1]
+                        },
+                        radius: radius,
+                    });
                 }
             }
 

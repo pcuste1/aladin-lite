@@ -116,6 +116,39 @@ export class RectSelect extends FSM {
                     view.selectObjects(objList);
                     callback(objList);
                 }
+
+                var region_callback = view.aladin.callbacksByEventName['regionSelected'];
+                if (typeof region_callback === "function") {
+                    let coos = [
+                        [
+                            Math.min(this.startCoo.x, this.coo.x),
+                            Math.min(this.startCoo.y, this.coo.y),
+                        ],
+                        [
+                            Math.max(this.startCoo.x, this.coo.x),
+                            Math.min(this.startCoo.y, this.coo.y),
+                        ],
+                        [
+                            Math.max(this.startCoo.x, this.coo.x),
+                            Math.max(this.startCoo.y, this.coo.y),
+                        ],
+                        [
+                            Math.min(this.startCoo.x, this.coo.x),
+                            Math.max(this.startCoo.y, this.coo.y),
+                        ],
+                    ];
+
+                    region_callback({
+                        type: "rect",
+                        coos: coos.map((coo) => {
+                            let cooWorld = view.aladin.pix2world(coo[0], coo[1]);
+                            return {
+                                ra: cooWorld[0],
+                                dec: cooWorld[1],
+                            };
+                        }),
+                    });
+                }
             }
 
             this.dispatch('off');
