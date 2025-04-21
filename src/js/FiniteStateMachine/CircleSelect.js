@@ -72,6 +72,7 @@ export class CircleSelect extends FSM {
         }
 
         let mouseup = (params) => {
+            console.log("mouseup")
             var x, y;
             const {coo} = params;
             this.coo = coo;
@@ -103,16 +104,20 @@ export class CircleSelect extends FSM {
 
             // execute general callback
             if (view.aladin.callbacksByEventName) {
+                console.log("1")
                 var callback = view.aladin.callbacksByEventName['objectsSelected'] || view.aladin.callbacksByEventName['select'];
 
                 if (typeof callback === "function") {
                     let objList = Selector.getObjects(s, view);
+                    console.log(objList);
+
                     view.selectObjects(objList);
                     callback(objList);
                 }
 
                 var region_callback = view.aladin.callbacksByEventName['regionSelected'];
                 if (typeof region_callback === "function") {
+                    console.log("3")
                     let startCooWorld = view.aladin.pix2world(this.startCoo.x, this.startCoo.y);
                     let radius = view.aladin.angularDist(
                         this.startCoo.x,
@@ -154,6 +159,27 @@ export class CircleSelect extends FSM {
             view.aladin.removeStatusBarMessage('selector')
         };
 
+        let api = (params) => {
+            let startCoo = params["startCoo"];
+            let endCoo = params["endCoo"];
+          
+            let startCooPix = view.aladin.world2pix(startCoo["ra"], startCoo["dec"]);
+            let endCooPix = view.aladin.world2pix(endCoo["ra"], endCoo["dec"]);
+
+
+            this.startCoo = {
+                x: startCooPix[0],
+                y: startCooPix[1],
+            };
+
+            this.dispatch('mouseup', {
+              coo: {
+                x: endCooPix[0],
+                y: endCooPix[1],
+              },
+            });
+        }
+
         super({
             state: 'off',
             transitions: {
@@ -161,7 +187,8 @@ export class CircleSelect extends FSM {
                     start,
                 },
                 start: {
-                    mousedown
+                    mousedown,
+                    api,
                 },
                 mousedown: {
                     mousemove
@@ -182,6 +209,9 @@ export class CircleSelect extends FSM {
                 },
                 mouseup: {
                     off,
+                },
+                api: {
+                    mouseup
                 }
             }
         })

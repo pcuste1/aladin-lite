@@ -443,6 +443,11 @@ export let View = (function () {
         this.selector.start(mode, callback);
     }
 
+    View.prototype.regionSelection = function(region, callback) {
+        this.selector.start(region["selection_type"], callback);
+        this.selector.dispatch("api", region);
+    }
+
     View.prototype.setMode = function (mode) {
         this.mode = mode;
 

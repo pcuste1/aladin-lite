@@ -172,6 +172,26 @@ export class RectSelect extends FSM {
             }
         };
 
+        let api = (params) => {
+            let startCoo = params["startCoo"];
+            let endCoo = params["endCoo"];
+          
+            let startCooPix = view.aladin.world2pix(startCoo["ra"], startCoo["dec"]);
+            let endCooPix = view.aladin.world2pix(endCoo["ra"], endCoo["dec"]);
+
+            this.startCoo = {
+                x: startCooPix[0],
+                y: startCooPix[1],
+            }
+
+            selector.dispatch("mouseup", {
+              coo: {
+                x: endCooPix[0],
+                y: endCooPix[1],
+              },
+            });
+        }
+
         super({
             state: 'off',
             transitions: {
@@ -182,7 +202,8 @@ export class RectSelect extends FSM {
                     mousedown,
                     mouseup,
                     mouseout,
-                    off
+                    off,
+                    api,
                 },
                 mousedown: {
                     mousemove,
@@ -206,6 +227,9 @@ export class RectSelect extends FSM {
                 },
                 mouseup: {
                     off,
+                },
+                api: {
+                    mouseup,
                 }
             }
         })
