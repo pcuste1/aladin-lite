@@ -116,6 +116,39 @@ export class RectSelect extends FSM {
                     view.selectObjects(objList);
                     callback(objList);
                 }
+
+                var region_callback = view.aladin.callbacksByEventName['regionSelected'];
+                if (typeof region_callback === "function") {
+                    let coos = [
+                        [
+                            Math.min(this.startCoo.x, this.coo.x),
+                            Math.min(this.startCoo.y, this.coo.y),
+                        ],
+                        [
+                            Math.max(this.startCoo.x, this.coo.x),
+                            Math.min(this.startCoo.y, this.coo.y),
+                        ],
+                        [
+                            Math.max(this.startCoo.x, this.coo.x),
+                            Math.max(this.startCoo.y, this.coo.y),
+                        ],
+                        [
+                            Math.min(this.startCoo.x, this.coo.x),
+                            Math.max(this.startCoo.y, this.coo.y),
+                        ],
+                    ];
+
+                    region_callback({
+                        type: "rect",
+                        coos: coos.map((coo) => {
+                            let cooWorld = view.aladin.pix2world(coo[0], coo[1]);
+                            return {
+                                ra: cooWorld[0],
+                                dec: cooWorld[1],
+                            };
+                        }),
+                    });
+                }
             }
 
             this.dispatch('off');
@@ -139,6 +172,26 @@ export class RectSelect extends FSM {
             }
         };
 
+        let api = (params) => {
+            let startCoo = params["startCoo"];
+            let endCoo = params["endCoo"];
+          
+            let startCooPix = view.aladin.world2pix(startCoo["ra"], startCoo["dec"]);
+            let endCooPix = view.aladin.world2pix(endCoo["ra"], endCoo["dec"]);
+
+            this.startCoo = {
+                x: startCooPix[0],
+                y: startCooPix[1],
+            }
+
+            selector.dispatch("mouseup", {
+              coo: {
+                x: endCooPix[0],
+                y: endCooPix[1],
+              },
+            });
+        }
+
         super({
             state: 'off',
             transitions: {
@@ -149,7 +202,8 @@ export class RectSelect extends FSM {
                     mousedown,
                     mouseup,
                     mouseout,
-                    off
+                    off,
+                    api,
                 },
                 mousedown: {
                     mousemove,
@@ -173,6 +227,9 @@ export class RectSelect extends FSM {
                 },
                 mouseup: {
                     off,
+                },
+                api: {
+                    mouseup,
                 }
             }
         })

@@ -2082,6 +2082,8 @@ export let Aladin = (function () {
         "select", // deprecated, use objectsSelected instead
         "objectsSelected",
 
+        "regionSelected",
+
         "objectClicked",
         "objectHovered",
         "objectHoveredStop",
@@ -2256,6 +2258,10 @@ aladin.on("layerChanged", (layer, layerName, state) => {
 
         this.fire("selectstart", { mode, callback });
     };
+
+    Aladin.prototype.selectRegion = async function (region, callback) {
+        this.view.regionSelection(region, callback);
+    }
 
     Aladin.prototype.fire = function (what, params) {
         if (what === "selectstart") {

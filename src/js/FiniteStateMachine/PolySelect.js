@@ -203,7 +203,24 @@ export class PolySelect extends FSM {
                 var callback = view.aladin.callbacksByEventName['objectsSelected'] || view.aladin.callbacksByEventName['select'];
                 if (typeof callback === "function") {
                     let objList = Selector.getObjects(s, view);
+
+                    view.selectObjects(objList);
                     callback(objList);
+                }
+
+                var region_callback = view.aladin.callbacksByEventName['regionSelected'];
+                if (typeof region_callback === "function") {
+
+                    region_callback({
+                        type: "poly",
+                        coos: this.coos.map((coo) => {
+                            let cooWorld = view.aladin.pix2world(coo.x, coo.y);
+                            return {
+                                ra: cooWorld[0],
+                                dec: cooWorld[1],
+                            };
+                        }),
+                    });
                 }
             }
 
@@ -215,6 +232,17 @@ export class PolySelect extends FSM {
 
             this.dispatch('off');
         };
+
+        let api = (params) => {
+            this.coos = params["coos"].map((coo) => {
+              let cooPix = view.aladin.world2pix(coo["ra"], coo["dec"]);
+              return {
+                  x: cooPix[0],
+                  y: cooPix[1],
+              };
+            });
+            this.dispatch("finish");
+        }
 
         let fsm;
         if (Utils.hasTouchScreen()) {
@@ -270,7 +298,8 @@ export class PolySelect extends FSM {
                         start,
                     },
                     start: {
-                        click
+                        click,
+                        api,
                     },
                     click: {
                         //mouseout,
@@ -295,6 +324,9 @@ export class PolySelect extends FSM {
                     },
                     finish: {
                         off
+                    },
+                    api: {
+                        finish
                     }
                 }
             }
