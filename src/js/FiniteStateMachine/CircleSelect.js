@@ -72,7 +72,6 @@ export class CircleSelect extends FSM {
         }
 
         let mouseup = (params) => {
-            console.log("mouseup")
             var x, y;
             const {coo} = params;
             this.coo = coo;
@@ -104,12 +103,10 @@ export class CircleSelect extends FSM {
 
             // execute general callback
             if (view.aladin.callbacksByEventName) {
-                console.log("1")
                 var callback = view.aladin.callbacksByEventName['objectsSelected'] || view.aladin.callbacksByEventName['select'];
 
                 if (typeof callback === "function") {
                     let objList = Selector.getObjects(s, view);
-                    console.log(objList);
 
                     view.selectObjects(objList);
                     callback(objList);
@@ -117,7 +114,6 @@ export class CircleSelect extends FSM {
 
                 var region_callback = view.aladin.callbacksByEventName['regionSelected'];
                 if (typeof region_callback === "function") {
-                    console.log("3")
                     let startCooWorld = view.aladin.pix2world(this.startCoo.x, this.startCoo.y);
                     let radius = view.aladin.angularDist(
                         this.startCoo.x,
