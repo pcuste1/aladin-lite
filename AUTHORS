@@ -1,0 +1,25 @@
+AUTHORS
+=======
+
+This file lists the main developers and contributors to this project.
+For a full list of commit authors, see: https://github.com/cds-astro/aladin-lite/graphs/contributors
+
+Institutional Affiliation
+--------------------------
+Centre de Données astronomiques de Strasbourg (CDS)
+https://cds.unistra.fr/
+
+Main Developers
+---------------
+Thomas Boch (@tboch)
+Matthieu Baumann (@bmatthieu3)
+
+
+
+Acknowledgments
+---------------
+We also acknowledge all contributors who have submitted bug reports, feature requests,
+documentation improvements, and patches through GitHub issues and pull requests.
+
+This project is hosted on GitHub:
+https://github.com/cds-astro/aladin-lite
